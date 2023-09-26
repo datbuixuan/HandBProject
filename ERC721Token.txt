@@ -1,12 +1,13 @@
 // contracts/FusionToken.sol
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.0;
+pragma solidity ^0.8.21;
 
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol";
+import "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
 import "@openzeppelin/contracts/interfaces/IERC2981.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
-contract CoinllectiblesToken is ERC721Enumerable, IERC2981, Ownable {
+contract HandBMinting is ERC721Enumerable, IERC2981, Ownable {
     bytes4 private constant _INTERFACE_ID_ERC2981 = 0x2a55205a;
 
     struct Item {
@@ -14,6 +15,9 @@ contract CoinllectiblesToken is ERC721Enumerable, IERC2981, Ownable {
         address royaltyAddress;
         uint96 royaltyPercentage;
     }
+
+    address public MintingAddress;
+    address public TransferAddress;
 
     mapping (uint256 => Item) private Items;
     string private ContractURI;
@@ -23,9 +27,47 @@ contract CoinllectiblesToken is ERC721Enumerable, IERC2981, Ownable {
     event itemCreated(uint256 tokenId, string tokenUri, address owner, address royaltyAddress, uint96 royaltyPercentage);
     event itemsCreated(uint256[] tokenIds, string[] tokenUris, address owner, address royaltyAddress, uint96 royaltyPercentage);
    
-   
-    function createItem( string memory uri, address owner, address royaltyAddress, uint96 royaltyPercentage) public onlyOwner {
+    modifier OnlyOwnerOrMinting()
+    {
+        bool valid = false;
+        if(msg.sender == owner()){
+            valid = true;
+        }          
+        else if(msg.sender == MintingAddress){
+            valid = true;
+        }        
+
+        require(valid, "You have not permission");
+        _;
+    }
+
+    modifier onlyTransfer() {
+        require(msg.sender == TransferAddress, "You have not permission");
+        _;
+    }
+
+    function onERC721Received(
+        address operator,
+        address from,
+        uint256 tokenId,
+        bytes calldata data
+    ) external returns (bytes4) {
+        return IERC721Receiver.onERC721Received.selector;
+    }
+
+    function updateMintingAddress(address newMintingAddress) public onlyOwner{
+        require(newMintingAddress != MintingAddress, "Address MintingAddress already exists");
+        MintingAddress = newMintingAddress;
+    }
+
+    function updateTransferAddress(address newTransferAddress) public onlyOwner{
+        require(newTransferAddress != TransferAddress, "Address TransferAddress already exists");
+        TransferAddress = newTransferAddress;
+    }
+
+    function createItem( string memory uri, address owner, address royaltyAddress, uint96 royaltyPercentage) public OnlyOwnerOrMinting {
         uint256 newItemId = totalSupply();
+
         _safeMint(owner, newItemId);    
 
         Items[newItemId] = Item(
@@ -76,6 +118,15 @@ contract CoinllectiblesToken is ERC721Enumerable, IERC2981, Ownable {
             require(_isApprovedOrOwner(msg.sender, tokenIds[i]), "You are not owner of item");
 
             _transfer(froms[i], tos[i], tokenIds[i]);
+        }
+    }
+
+    function transferOut(uint256[] memory tokenIds, address[] memory tos) public onlyTransfer {
+        require(tokenIds.length == tos.length, "The input data is incorrect");
+        for(uint256 i = 0; i < tos.length; i++){
+            require(_exists(tokenIds[i]), "No token ID exists");
+
+            _transfer(address(this), tos[i], tokenIds[i]);
         }
     }
     
