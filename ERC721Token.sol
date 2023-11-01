@@ -26,9 +26,9 @@ contract MintingEngine is ERC721Enumerable, IERC2981, IERC721Receiver, Ownable {
 
     event itemsCreated(uint256[] tokenIds, string[] tokenUris, address owner, address royaltyAddress, uint96 royaltyPercentage);
    
-    modifier OnlyOwnerOrMinting()
+    modifier onlyOwnerOrMinting()
     {
-        require(msg.sender != owner() || msg.sender != MintingAddress, "You have not permission");
+        require(msg.sender == owner() || msg.sender == MintingAddress, "You have not permission");
         _;         
     }
 
@@ -47,7 +47,7 @@ contract MintingEngine is ERC721Enumerable, IERC2981, IERC721Receiver, Ownable {
         TransferAddress = newTransferAddress;
     }
 
-    function createItems(string[] memory uris, address owner, address royaltyAddress, uint96 royaltyPercentage) public OnlyOwnerOrMinting {
+    function createItems(string[] memory uris, address owner, address royaltyAddress, uint96 royaltyPercentage) public onlyOwnerOrMinting {
         require(uris.length > 0, "The token URIs is not valid");
         uint256[] memory newItems = new uint256[](uris.length);
 
